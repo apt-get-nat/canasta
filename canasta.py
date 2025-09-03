@@ -22,6 +22,7 @@ MELD_POINTS = { **{('clean',3):1000,
                 **{('dirty',r):300 for r in range(4,15)},
                 **{('clean',r):500 for r in [4,6,8,9,10,11,12,13,14]}
 }
+SUIT_ORDER = {'':0,'clubs':1,'spades':2,'hearts':3,'diamonds':4}
 
 class Card:
     def __init__(self, rank, suit):
@@ -63,10 +64,14 @@ class Card:
         else:
             return False
     def __eq__(self, card):
-        return self.rank == card.rank
+        return (self.rank == card.rank and self.suit == card.suit)
     def __lt__(self, card):
+        if self.rank == card.rank:
+            return SUIT_ORDER[self.suit] < SUIT_ORDER[card.suit]
         return self.rank < card.rank
     def __le__(self, card):
+        if self.rank == card.rank:
+            return SUIT_ORDER[self.suit] <= SUIT_ORDER[card.suit]
         return self.rank <= card.rank
 class Deck:
     def __init__(self, decks):
@@ -121,6 +126,7 @@ class Player:
             self.hand.append(c)
         return
     def discard(self, card_idx, deck):
+        assert card_idx < len(self.hand), 'improper index'
         deck.discard_pile.append(self.hand.pop(card_idx))
         return
     def pickup(self, idxs, deck, meld_idx = None):
@@ -316,7 +322,15 @@ class Game:
             print([str(m) for m in p.locked_melds])
             print([str(m) for m in p.melds])
         print(f"{self.players[self.turn].name}'s hand:")
-        print([str(c) for c in self.players[self.turn].hand])
+        hand = ''
+        counter = 1
+        for c in self.players[self.turn].hand:
+            hand = hand + f'{counter:02}:{c},'
+            if counter%9 ==0:
+                hand = hand + '\n'
+            counter = counter+1
+        hand = hand[:-1]
+        print(hand)
     def update(self):
         message = ""
         while True:
@@ -368,9 +382,20 @@ class Game:
                 continue
             if len(self.players[self.turn].hand) == 0:
                 self.players[self.turn].draw(self.deck, cards=[])
-        self.update_display()
-        d = input('discard c1 >')
-        self.players[self.turn].discard(int(d)-1, self.deck)
+        while True:
+            self.update_display()
+            print(message)
+            message = ""
+            d = input('discard c1 >')
+            try:
+                self.players[self.turn].discard(int(d)-1, self.deck)
+                break
+            except AssertionError as e:
+                message = str(e)
+                continue
+            except ValueError:
+                message = 'improper input'
+                continue
         required = [False]*6
         if len(self.players[self.turn].hand+self.players[self.turn].butt+self.players[self.turn].foot) == 0:
             for m in self.players[self.turn].locked_melds:
