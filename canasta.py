@@ -104,7 +104,7 @@ class Player:
         if len(self.hand) == 0:
             cards = cards + self.foot
             self.foot = []
-        for j in range(len(cards)):
+        for j in range(len(cards)-1,-1,-1):
             if cards[j].rank == 3 and cards[j].suit in ['hearts','diamonds']:
                 found = False
                 for m in range(len(self.melds)):
@@ -304,13 +304,13 @@ class Game:
                 
     def update_display(self):
         self.players[self.turn].hand.sort()
-        for j in range(20):
+        for j in range(30):
             print(LINE_UP, end=LINE_CLEAR)
         if len(self.deck.discard_pile)>0:
             print(f'[{self.deck.discard_pile[-1]}][ππ]')
         else:
             print('[  ][ππ]')
-#        print(str(self.deck))
+        print(str(self.deck))
         for p in self.players:
             print(f"{p.name}'s melds:")
             print([str(m) for m in p.locked_melds])
@@ -366,20 +366,42 @@ class Game:
             except AssertionError as e:
                 message = str(e)
                 continue
+            if len(self.players[self.turn].hand) == 0:
+                self.players[self.turn].draw(self.deck, cards=[])
         self.update_display()
         d = input('discard c1 >')
         self.players[self.turn].discard(int(d)-1, self.deck)
-        return
+        required = [False]*6
+        if len(self.players[self.turn].hand+self.players[self.turn].butt+self.players[self.turn].foot) == 0:
+            for m in self.players[self.turn].locked_melds:
+                required[0] = (m.type[0] == 'run')
+                required[1] = (m.type[0] == 'wilds')
+                required[2] = (m.type[1] == 5)
+                required[3] = (m.type[1] == 7)
+                required[4] = (m.type[0] == 'clean' and
+                               m.type[1] in [4,6,8,9,10,11,12,13,14])
+                required[5] = (m.type[0] == 'dirty' and
+                               m.type[1] in [4,6,8,9,10,11,12,13,14])
+        if sum(required) == 6:
+            return True
+        else:
+            return False
 
 def main():
     g = Game()
     while True:
-        g.update()
-        g.turn = (g.turn + 1) % len(g.players)
+        done = g.update()
+        if done:
+            scores = g.score()
+            print(f'{g.players[g.turn].name} wins!')
+            print(scores)
+            break
+        else:
+            g.turn = (g.turn + 1) % len(g.players)
         
-        for j in range(20):
-            print(LINE_UP, end=LINE_CLEAR)
-        pause = input("Next player")
+            for j in range(30):
+                print(LINE_UP, end=LINE_CLEAR)
+            pause = input("Next player")
 
 if __name__ == '__main__':
     main()
